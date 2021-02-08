@@ -6,11 +6,12 @@ def iou(pred, target):
     size, n_class, h, w = pred.shape
     print(pred.shape)
     print(target.shape)
-    for cls in range(n_class):
-        prdEqCls = torch.eq(prdLabel, cls).float() 
-        tarEqCls = torch.eq(tarLabel, cls).float()   
+    tarNeqNonlabel = ((torch.eq(tarLabel, 26).float() - 1) * -1)
+    for cls in range(n_class - 1):
+        prdEqCls = torch.eq(prdLabel, cls).float() * tarNeqNonlabel
+        tarEqCls = torch.eq(tarLabel, cls).float()
         intersection = torch.sum(torch.mul(prdEqCls, tarEqCls)).item()
-        union = intersection + torch.sum(torch.mul(prdEqCls, torch.add(torch.mul(tarEqCls, -1), 1))).item() + torch.sum(torch.mul(tarEqCls, torch.add(torch.mul(prdEqCls, -1), 1))).item()
+        union = intersection + torch.sum(prdEqCls * (tarEqCls - 1) * -1 * tarNeqNonlabel).item() + torch.sum((prdEqCls - 1) * -1 * tarEqCls).item()
         if union == 0:
             ious.append(float('nan'))  # if there is no ground truth, do not include in evaluation
         else:
@@ -23,5 +24,6 @@ def pixel_acc(pred, target):
     import torch
     prdLabel = torch.argmax(pred, dim = 1)
     tarLabel = torch.argmax(target, dim = 1)
-    equals = torch.eq(prdLabel, tarLabel).float()
-    return torch.mean(equals).item()
+    tarNeqNonlabel = ((torch.eq(tarLabel, 26).float() - 1) * -1)
+    equals = torch.eq(prdLabel, tarLabel).float() * tarNeqNonlabel
+    return torch.sum(equals).item() / torch.sum(tarNeqNonlabel).item()
